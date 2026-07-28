@@ -1,53 +1,63 @@
 import requests
 from PIL import Image
-import PySimpleGUI as sg
+import FreeSimpleGUI as sg
 import os
 import re
 import json
 
 
-def pokemon_func(pokemon_name, graphic, shiny, who):
-    pokemon = pokemon_image_url(pokemon_name, graphic, shiny)
+def pokemon_func(pokemon_name, graphic, shiny, female, who):
+    pokemon = pokemon_image_url(pokemon_name, graphic, shiny, female)
     # pokemon > return img, pokemon_data(name, ID)
 
     if pokemon is not None:
         pokemon_identity = f'{pokemon[1][1]} {pokemon[1][0]} {graphic}'
-        pokemon_identity += " shiny" if shiny else ''
-        pokemon_identity += " who" if who else ''
+        pokemon_identity += ' shiny' if shiny else ''
+        pokemon_identity += ' female' if female else ''
+        pokemon_identity += ' who' if who else ''
 
-        pokemon[0].save(f'pokemons/{pokemon_identity}.png', "PNG")
+        pokemon[0].save(f'pokemons/{pokemon_identity}.png', 'PNG')
         img = Image.open(f'pokemons/{pokemon_identity}.png')
         img = img.resize((500, 500))
         img.save(f'pokemons/{pokemon_identity}.png')
 
         if who:
             pokemon_who(pokemon_identity)
-
         return pokemon_identity
 
 
-def pokemon_image_url(pokemon_name, graphic, shiny):
+def pokemon_image_url(pokemon_name, graphic, shiny, female):
     try:
         pokeapi = requests.get(
             f"https://pokeapi.co/api/v2/pokemon/{pokemon_name.lower() and pokemon_name.replace(' ', '-')}"
         )
         pokemon = pokeapi.json()
 
-        if graphic == "Pixel Art" and shiny is True:
-            url = pokemon["sprites"]["front_shiny"]
-        elif graphic == "Art Work" and shiny is False:
-            url = pokemon["sprites"]["other"]["official-artwork"]["front_default"]
-        elif graphic == "Art Work" and shiny is True:
-            url = pokemon["sprites"]["other"]["official-artwork"]["front_shiny"]
-        elif graphic == "3D" and shiny is False:
-            url = pokemon["sprites"]["other"]["home"]["front_default"]
-        elif graphic == "3D" and shiny is True:
-            url = pokemon["sprites"]["other"]["home"]["front_shiny"]
+        if graphic == 'Pixel Art' and shiny is True and female is True:
+            url = pokemon['sprites']['front_shiny_female']
+        elif graphic == 'Pixel Art' and shiny is True and female is False:
+            url = pokemon['sprites']['front_shiny']
+        elif graphic == 'Pixel Art' and shiny is False and female is True:
+            url = pokemon['sprites']['front_female']
+
+        elif graphic == 'Art Work' and shiny is False:
+            url = pokemon['sprites']['other']['official-artwork']['front_default']
+        elif graphic == 'Art Work' and shiny is True:
+            url = pokemon['sprites']['other']['official-artwork']['front_shiny']
+
+        elif graphic == '3D' and shiny is False and female is True:
+            url = pokemon['sprites']['other']['home']['front_female']
+        elif graphic == '3D' and shiny is True and female is True:
+            url = pokemon['sprites']['other']['home']['front_shiny_female']
+        elif graphic == '3D' and shiny is False and female is False:
+            url = pokemon['sprites']['other']['home']['front_default']
+        elif graphic == '3D' and shiny is True and female is False:
+            url = pokemon['sprites']['other']['home']['front_shiny']
         else:
-            url = pokemon["sprites"]["front_default"]
+            url = pokemon['sprites']['front_default']
 
         img = Image.open(requests.get(url, stream=True).raw)
-        pokemon_data = pokemon["forms"][0]["name"], pokemon["id"]
+        pokemon_data = pokemon['forms'][0]['name'], pokemon['id']
 
         return img, pokemon_data
     except:
@@ -57,7 +67,7 @@ def pokemon_image_url(pokemon_name, graphic, shiny):
 def pokemon_who(pokemon_identity):
     black_and_white = []
     transparent = []
-    img = Image.open(f'pokemons/{pokemon_identity}.png').convert("RGBA")
+    img = Image.open(f'pokemons/{pokemon_identity}.png').convert('RGBA')
     data = img.getdata()
     for item in data:
         if item[0] > 0 and item[1] > 0 and item[2] > 0:
@@ -71,15 +81,17 @@ def pokemon_who(pokemon_identity):
             transparent.append(item)
     img.putdata(transparent)
     if 'who' in pokemon_identity:
-        img.save(f'pokemons/{pokemon_identity}.png', "PNG")
+        img.save(f'pokemons/{pokemon_identity}.png', 'PNG')
     else:
-        img.save(f'pokemons/{pokemon_identity} who.png', "PNG")
+        img.save(f'pokemons/{pokemon_identity} who.png', 'PNG')
 
 
-def pokemon_find(pokemon_name, graphic, shiny, who):
+def pokemon_find(pokemon_name, graphic, shiny, female, who):
     pokemon_pattern = f'{graphic}'
     if shiny:
         pokemon_pattern += ' shiny'
+    if female:
+        pokemon_pattern += ' female'
     if who:
         pokemon_pattern += ' who'
     if pokemon_name.isdigit():
@@ -95,6 +107,8 @@ def pokemon_find(pokemon_name, graphic, shiny, who):
         pokemon_pattern = f'[^ ]* {graphic}'
         if shiny:
             pokemon_pattern += ' shiny'
+        if female:
+            pokemon_pattern += ' female'
         if pokemon_name.isdigit():
             pokemon_pattern = f'_-_{pokemon_name} {pokemon_pattern}.png'
         else:
@@ -109,7 +123,7 @@ def pokemon_find(pokemon_name, graphic, shiny, who):
 
     if not pokemon_identity:
         # Make pokemon image, name and ID
-        pokemon_data = [pokemon_func(pokemon_name, graphic, shiny, who)]
+        pokemon_data = [pokemon_func(pokemon_name, graphic, shiny, female, who)]
         # pokemon_func > return (name, ID), pokemon_identity
 
     else:
@@ -144,42 +158,44 @@ with open('pokemons/.pokemons.json', 'r') as pokemons_json:
 
 # Layout
 layout = [
-    [sg.Text("Enter Pokemon Name or ID:"), sg.InputText(key='pokemon name', enable_events=True)],
+    [sg.Text('Enter Pokemon Name or ID:'), sg.InputText(key='pokemon name', enable_events=True)],
     [sg.Push(), sg.pin(sg.Col([[sg.Listbox(values=[], size=(47, 5), enable_events=True, key='box',
                                 select_mode=sg.LISTBOX_SELECT_MODE_SINGLE)]],
                    key='pokemon box', pad=(0, 0), visible=False))],
     [
-        sg.Text("Graphics type:"),
+        sg.Text('Graphics type:'),
         sg.Combo(
-            ["Pixel Art", "Art Work", "3D"], key="graphic", default_value="Pixel Art"
+            ['Pixel Art', 'Art Work', '3D'], key='graphic', default_value='Pixel Art'
         ),
-        sg.Text("Shiny:"),
-        sg.Checkbox("", key="shiny"),
+        sg.Text('Shiny:'),
+        sg.Checkbox('', key='shiny'),
+        sg.Text('Female:'),
+        sg.Checkbox('', key='female'),
     ],
-    [sg.Text("Who's that Pokemon:"), sg.Checkbox("work in progress", key="who")],
+    [sg.Text("Who's that Pokemon:"), sg.Checkbox('work in progress', key='who')],
     [
         sg.Button('Previous', disabled=True),
         sg.Push(), sg.Text(key='pokemon data'),
         sg.Push(), sg.Button('Next', disabled=True),
     ],
-    [sg.Button("OK"), sg.Button('Save', disabled=True), sg.Push(), sg.Button("Cancel")],
-    [sg.Image(key='pokemon img'), sg.Text("", key='pokemon not found')],
+    [sg.Button('OK'), sg.Button('Save', disabled=True), sg.Push(), sg.Button('Cancel')],
+    [sg.Image(key='pokemon img'), sg.Text('', key='pokemon not found')],
 ]
 
 
 # Window
-window = sg.Window("Pokemon", layout, size=(550, 750), finalize=True, return_keyboard_events=True)
-window['pokemon name'].bind("<Return>", "_Enter")
+window = sg.Window('Pokemon', layout, size=(550, 750), finalize=True, return_keyboard_events=True)
+window['pokemon name'].bind('<Return>', '_Enter')
 
 
 # Pokemon Box
 list_element: sg.Listbox = window.Element('box')
-prediction_list, input_text, sel_item = [], "", 0
+prediction_list, input_text, sel_item = [], '', 0
 
 
 while True:
     event, values = window.read()
-    if event == sg.WIN_CLOSED or event == "Cancel":
+    if event == sg.WIN_CLOSED or event == 'Cancel':
         break
 
     # Pokemon Box
@@ -224,14 +240,14 @@ while True:
         pokemons_dict = json.load(pokemons_json)
 
         try:
-            if event == "OK" or (event == 'pokemon name' + "_Enter" and values['pokemon name'] == values['box'][0]):
+            if event == 'OK' or (event == 'pokemon name' + '_Enter' and values['pokemon name'] == values['box'][0]):
 
                 # Check Pokémon exists in .pokemons.json
                 for pokemon_dict in pokemons_dict:
                     if values['pokemon name'] == pokemon_dict['name'] or values['pokemon name'] == pokemon_dict['id']:
                         # Check Pokémon image exists, if not create it
                         pokemon_data = [[pokemon_dict['name'], int(pokemon_dict['id'])],
-                                        pokemon_find(values['pokemon name'], values['graphic'], values['shiny'], values['who'])]
+                                        pokemon_find(values['pokemon name'], values['graphic'], values['shiny'], values['female'], values['who'])]
                         # pokemon_data = [[name, id], [pokemon_identity]
 
                 try:
@@ -242,7 +258,7 @@ while True:
                 # Correct data
                 if os.path.exists(f'pokemons/{pokemon_data[1][0]}.png'):
                     window['pokemon img'].update(filename=f'pokemons/{pokemon_data[1][0]}.png')
-                    window['pokemon not found'].update("")
+                    window['pokemon not found'].update('')
                     window['pokemon data'].update(
                         f'Name: {pokemon_data[0][0]}, ID: {pokemon_data[0][1]}'
                     )
@@ -277,14 +293,13 @@ while True:
                     try:
                         pokemon_id = pokemons_dict[pokemons_dict.index(pokemon) + 1]['id']
                         pokemon_name = pokemons_dict[pokemons_dict.index(pokemon) + 1]['name']
-                    except IndexError:
+                    except IndexError or ValueError or NameError:
                         pokemon_id = 1
 
                 # Make new pokemon_data
-                # pokemon_data = pokemon_find(str(pokemon_id), values['graphic'], values['shiny'], values['who'])
+                # pokemon_data = pokemon_find(str(pokemon_id), values['graphic'], values['shiny'], values['female'], values['who'])
                 pokemon_data = [[pokemon_name, pokemon_id],
-                                pokemon_find(str(pokemon_id), values['graphic'], values['shiny'], values['who'])]
-                print(pokemon_data)
+                                pokemon_find(str(pokemon_id), values['graphic'], values['shiny'], values['female'], values['who'])]
 
             # Update Pokémon img
                 if os.path.exists(f'pokemons/{pokemon_data[1][0]}.png'):
@@ -292,11 +307,11 @@ while True:
                     window['pokemon not found'].update('')
                     window['pokemon data'].update(f'Name: {pokemon_data[0][0]}, ID: {pokemon_data[0][1]}')
 
-                    # Change value "Pokémon name" with ID
+                    # Change value  with ID
                     if values['pokemon name'].isdigit():
                         window['pokemon name'].update(pokemon_data[0][1])
 
-                    # Change value "Pokémon name" with name
+                    # Change value  with name
                     else:
                         window['pokemon name'].update(pokemon_data[0][0])
                 else:
@@ -304,11 +319,11 @@ while True:
                     window['pokemon not found'].update('Pokemon image not found')
                     window['pokemon data'].update(f'Name: {pokemon_data[0][0]}, ID: {pokemon_data[0][1]}')
 
-                    # Change value "Pokémon name" with ID
+                    # Change value 'Pokémon name' with ID
                     if values['pokemon name'].isdigit():
                         window['pokemon name'].update(pokemon_data[0][1])
 
-                    # Change value "Pokémon name" with name
+                    # Change value 'Pokémon name' with name
                     else:
                         window['pokemon name'].update(pokemon_data[0][0])
         except TypeError:
